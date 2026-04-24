@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pixel World 🌍</title>
+<style>
+:root {
+  --bg: #1a1a2e; --surface: #16213e; --card: #0f3460;
+  --accent: #e94560; --green: #4ecca3; --yellow: #ffd460;
+  --blue: #38bdf8; --purple: #a78bfa; --orange: #f97316;
+  --text: #eaeaea; --muted: #777;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+
+/* SCREENS */
+.screen { display: none; width: 100%; max-width: 520px; padding: 28px 16px; flex-direction: column; align-items: center; gap: 14px; }
+.screen.active { display: flex; }
+h1 { font-size: 2rem; letter-spacing: 6px; color: var(--green); text-shadow: 0 0 20px rgba(78,204,163,0.4); }
+.sub { font-size: 10px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase; }
+.card { width: 100%; background: var(--surface); border: 1px solid #2a2a4a; border-radius: 14px; padding: 20px; }
+.card h2 { font-size: 11px; letter-spacing: 3px; color: var(--green); margin-bottom: 14px; text-transform: uppercase; }
+.field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+.field label { font-size: 10px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; }
+.field input { background: var(--bg); border: 1px solid #2a2a4a; border-radius: 8px; padding: 10px 13px; color: var(--text); font-family: 'Courier New', monospace; font-size: 13px; outline: none; }
+.field input:focus { border-color: var(--green); }
+.btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 12px; letter-spacing: 3px; text-transform: uppercase; cursor: pointer; transition: all 0.2s; }
+.btn-green { background: var(--green); color: var(--bg); font-weight: bold; }
+.btn-green:hover { opacity: 0.85; }
+.btn-red { background: var(--accent); color: #fff; font-weight: bold; }
+.avatar-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 12px; }
+.av-option { aspect-ratio:1; border: 2px solid #2a2a4a; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; cursor: pointer; background: var(--bg); transition: all 0.15s; }
+.av-option:hover, .av-option.selected { border-color: var(--green); background: rgba(78,204,163,0.15); }
+.color-row { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 12px; }
+.color-dot { width: 26px; height: 26px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: all 0.15s; }
+.color-dot.selected { border-color: #fff; transform: scale(1.2); }
+.error-msg { font-size: 11px; color: var(--accent); min-height: 16px; letter-spacing: 1px; }
+
+/* GAME LAYOUT */
+#gameScreen { max-width: 100%; padding: 0; }
+#gameHeader { width: 100%; background: var(--surface); border-bottom: 1px solid #2a2a4a; padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.hud-left { display: flex; gap: 10px; align-items: center; }
+.hud-map { font-size: 10px; letter-spacing: 2px; color: var(--yellow); text-transform: uppercase; }
+.hud-coins { font-size: 11px; color: var(--yellow); }
+.hud-level { font-size: 11px; color: var(--purple); }
+#onlineCount { font-size: 11px; color: var(--green); }
+.hud-right { display: flex; gap: 8px; align-items: center; }
+.btn-sm { padding: 5px 12px; border: none; border-radius: 6px; font-family: 'Courier New', monospace; font-size: 10px; letter-spacing: 1px; cursor: pointer; }
+.btn-sm.red { background: var(--accent); color: #fff; }
+.btn-sm.blue { background: var(--blue); color: var(--bg); font-weight: bold; }
+.btn-sm.yellow { background: var(--yellow); color: var(--bg); font-weight: bold; }
+
+#worldCanvas { display: block; width: 100%; max-width: 700px; image-rendering: pixelated; cursor: none; }
+
+/* BOTTOM UI */
+#bottomUI { width: 100%; max-width: 700px; background: var(--surface); border-top: 1px solid #2a2a4a; }
+
+/* QUEST PANEL */
+#questPanel { padding: 8px 14px; border-bottom: 1px solid #1a1a3a; }
+.quest-title { font-size: 9px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; }
+.quest-item { font-size: 11px; color: var(--yellow); display: flex; gap: 8px; align-items: center; }
+.quest-item.done { color: var(--green); text-decoration: line-through; opacity: 0.6; }
+.quest-progress { font-size: 10px; color: var(--muted); }
+
+/* CONTROLS */
+#controls { padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.ctrl-hint { font-size: 10px; color: var(--muted); }
+.ctrl-hint kbd { background: var(--bg); border: 1px solid #3a3a5a; border-radius: 3px; padding: 1px 5px; font-size: 10px; color: var(--text); }
+#dpad { display: none; grid-template-columns: repeat(3, 40px); grid-template-rows: repeat(3, 40px); gap: 3px; }
+.dpad-btn { background: var(--card); border: 1px solid #2a4a6a; border-radius: 7px; color: var(--text); font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; user-select: none; -webkit-tap-highlight-color: transparent; }
+.dpad-btn:active { background: var(--green); color: var(--bg); }
+@media (max-width: 600px) { #dpad { display: grid; } .ctrl-hint { display: none; } }
+
+/* CHAT */
+#chatWrap { border-top: 1px solid #1a1a3a; padding: 8px 14px; display: flex; gap: 7px; }
+#chatInput { flex: 1; background: var(--bg); border: 1px solid #2a2a4a; border-radius: 6px; padding: 7px 11px; color: var(--text); font-family: 'Courier New', monospace; font-size: 11px; outline: none; }
+#chatInput:focus { border-color: var(--green); }
+#chatSend { background: var(--green); color: var(--bg); border: none; border-radius: 6px; padding: 7px 12px; font-family: 'Courier New', monospace; font-size: 10px; font-weight: bold; cursor: pointer; letter-spacing: 1px; }
+
+/* MODAL */
+.modal-overlay { position: fixed; inset: 0; background: rgba(10,10,20,0.85); display: flex; align-items: center; justify-content: center; z-index: 200; padding: 16px; }
+.modal-overlay.hidden { display: none; }
+.modal { background: var(--surface); border: 1px solid #3a3a5a; border-radius: 16px; padding: 24px; width: 100%; max-width: 400px; }
+.modal h2 { font-size: 14px; letter-spacing: 3px; color: var(--green); margin-bottom: 16px; text-transform: uppercase; }
+.modal p { font-size: 12px; color: var(--text); line-height: 1.7; margin-bottom: 14px; }
+.modal-btns { display: flex; gap: 8px; margin-top: 16px; }
+.modal-btns .btn { font-size: 11px; padding: 10px; }
+
+/* MINI-GAME MODAL */
+#mgBoard { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin: 14px 0; }
+.mg-cell { aspect-ratio:1; background: var(--bg); border: 2px solid #3a3a5a; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 2rem; cursor: pointer; transition: all 0.15s; }
+.mg-cell:hover { border-color: var(--green); }
+.mg-cell.x { color: var(--accent); }
+.mg-cell.o { color: var(--blue); }
+.mg-result { font-size: 13px; color: var(--yellow); text-align: center; min-height: 20px; letter-spacing: 2px; }
+
+/* ITEM POPUP */
+#itemPopup { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background: rgba(255,212,96,0.95); color: #1a1a2e; border-radius: 10px; padding: 8px 18px; font-size: 12px; font-weight: bold; letter-spacing: 2px; z-index: 300; transition: opacity 0.5s; pointer-events: none; }
+#itemPopup.hidden { opacity: 0; }
+
+/* MAP SELECT */
+.map-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; margin-bottom: 14px; }
+.map-card { background: var(--bg); border: 2px solid #2a2a4a; border-radius: 10px; padding: 14px; cursor: pointer; transition: all 0.2s; text-align: center; }
+.map-card:hover, .map-card.current { border-color: var(--green); background: rgba(78,204,163,0.08); }
+.map-card.locked { opacity: 0.4; cursor: not-allowed; }
+.map-card .map-icon { font-size: 2rem; margin-bottom: 6px; }
+.map-card .map-name { font-size: 11px; letter-spacing: 2px; color: var(--green); text-transform: uppercase; }
+.map-card .map-req { font-size: 9px; color: var(--muted); margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<!-- JOIN SCREEN -->
+<div class="screen active" id="joinScreen">
+  <h1>PIXEL WORLD</h1>
+  <p class="sub">multiplayer adventure · quests · items · mini-games</p>
+  <div class="card">
+    <h2>Choose Your Character</h2>
+    <div class="avatar-grid" id="avatarGrid"></div>
+    <div class="color-row" id="colorRow"></div>
+    <div class="field"><label>Your Name</label><input type="text" id="nameInput" placeholder="Enter name..." maxlength="12"></div>
+    <div class="field"><label>Room Code</label><input type="text" id="roomInput" placeholder="e.g. adventure1" maxlength="20"></div>
+    <div class="error-msg" id="joinError"></div>
+    <button class="btn btn-green" onclick="joinGame()">Enter World ➜</button>
+  </div>
+</div>
+
+<!-- GAME SCREEN -->
+<div class="screen" id="gameScreen">
+  <div id="gameHeader">
+    <div class="hud-left">
+      <div class="hud-map" id="hudMap">🌿 Forest</div>
+      <div class="hud-coins" id="hudCoins">🪙 0</div>
+      <div class="hud-level" id="hudLevel">⭐ Lv.1</div>
+    </div>
+    <div id="onlineCount">● 1 online</div>
+    <div class="hud-right">
+      <button class="btn-sm yellow" onclick="openMapSelect()">🗺 Maps</button>
+      <button class="btn-sm blue" onclick="openMiniGame()">🎮 Mini</button>
+      <button class="btn-sm red" onclick="leaveGame()">Leave</button>
+    </div>
+  </div>
+
+  <canvas id="worldCanvas" width="700" height="420"></canvas>
+
+  <div id="bottomUI">
+    <div id="questPanel">
+      <div class="quest-title">📋 Active Quest</div>
+      <div id="questText" class="quest-item">Loading...</div>
+      <div id="questProg" class="quest-progress"></div>
+    </div>
+    <div id="controls">
+      <div class="ctrl-hint"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / Arrows to move · Walk over ✨ to collect</div>
+      <div id="dpad">
+        <div></div><button class="dpad-btn" ontouchstart="sm('up')" ontouchend="em('up')">▲</button><div></div>
+        <button class="dpad-btn" ontouchstart="sm('left')" ontouchend="em('left')">◀</button>
+        <div class="dpad-btn"></div>
+        <button class="dpad-btn" ontouchstart="sm('right')" ontouchend="em('right')">▶</button>
+        <div></div><button class="dpad-btn" ontouchstart="sm('down')" ontouchend="em('down')">▼</button><div></div>
+      </div>
+    </div>
+    <div id="chatWrap">
+      <input type="text" id="chatInput" placeholder="Chat with friends..." maxlength="40">
+      <button id="chatSend" onclick="sendChat()">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAP SELECT MODAL -->
+<div class="modal-overlay hidden" id="mapModal">
+  <div class="modal">
+    <h2>🗺 Choose Map</h2>
+    <div class="map-grid" id="mapGrid"></div>
+    <button class="btn btn-green" onclick="closeMapSelect()">Close</button>
+  </div>
+</div>
+
+<!-- MINI-GAME MODAL -->
+<div class="modal-overlay hidden" id="mgModal">
+  <div class="modal">
+    <h2>🎮 Mini Games</h2>
+    <p style="font-size:11px;color:var(--muted);">Play with friends in the same room!</p>
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <button class="btn btn-green" style="font-size:10px;padding:8px;" onclick="startTTT()">Tic-Tac-Toe</button>
+      <button class="btn" style="background:var(--purple);color:#fff;font-size:10px;padding:8px;" onclick="startRPS()">Rock Paper Scissors</button>
+    </div>
+    <div id="mgContent"></div>
+    <button class="btn btn-red" style="margin-top:10px;font-size:11px;padding:8px;" onclick="closeMiniGame()">Close</button>
+  </div>
+</div>
+
+<!-- NPC MODAL -->
+<div class="modal-overlay hidden" id="npcModal">
+  <div class="modal">
+    <h2 id="npcName">NPC</h2>
+    <p id="npcText"></p>
+    <div class="modal-btns" id="npcBtns"></div>
+  </div>
+</div>
+
+<!-- ITEM POPUP -->
+<div id="itemPopup" class="hidden"></div>
+
+<script type="module">
+// ══════════════════════════════
+// FIREBASE CONFIG
+// ══════════════════════════════
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCdoXJs7v8ZVCvgbKdMjGrmAd12OZgyUF4",
+  authDomain: "jumpphachit-b6007.firebaseapp.com",
+  databaseURL: "https://jumpphachit-b6007-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "jumpphachit-b6007",
+  storageBucket: "jumpphachit-b6007.firebasestorage.app",
+  messagingSenderId: "1058953055583",
+  appId: "1:1058953055583:web:8ed4bcbd41b4d59fcf7aea"
+};
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, set, onValue, onDisconnect, remove, push, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+// ══════════════════════════════
+// CONSTANTS
+// ══════════════════════════════
+const AVATARS = ['🐱','🐶','🐸','🐼','🦊','🐯','🐧','🐻','🦁','🐨'];
+const COLORS  = ['#4ecca3','#e94560','#ffd460','#a78bfa','#f97316','#38bdf8','#fb7185','#86efac'];
+const TILE = 32;
+const W = 700, H = 420;
+const SPEED = 2.5;
+
+// ══════════════════════════════
+// MAPS DEFINITION
+// ══════════════════════════════
+// Tiles: 0=grass 1=water 2=tree 3=path 4=flower 5=sand 6=snow 7=lava 8=dungeon floor
+const MAPS = {
+  forest: {
+    name: '🌿 Forest', unlockLevel: 1, bg: '#1a3d15',
+    items: [], npcs: [],
+    data: [
+      [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
+      [2,0,0,0,0,0,0,3,3,3,0,0,0,0,4,0,0,0,0,0,0,2],
+      [2,0,0,4,0,0,0,3,0,3,0,0,0,0,0,0,0,0,4,0,0,2],
+      [2,0,0,0,0,0,0,3,0,3,0,1,1,1,0,0,0,0,0,0,0,2],
+      [2,0,2,0,0,0,0,3,0,3,0,1,1,1,0,0,2,0,0,0,0,2],
+      [2,0,0,0,0,0,0,3,0,3,0,1,1,1,0,0,0,0,0,0,4,2],
+      [2,0,0,0,4,0,0,3,3,3,0,0,0,0,0,0,0,0,0,0,0,2],
+      [2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,2],
+      [2,0,2,0,0,0,0,0,0,0,0,0,0,4,0,0,0,0,0,0,0,2],
+      [2,0,0,0,0,4,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,2],
+      [2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2],
+      [2,0,0,4,0,0,0,0,0,2,0,0,0,0,0,0,0,4,0,0,0,2],
+      [2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2],
+      [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
+    ],
+    itemSpawns: [{x:5,y:3},{x:15,y:8},{x:10,y:5},{x:18,y:11},{x:3,y:10},{x:19,y:4},{x:6,y:9},{x:14,y:2}],
+    npcDefs: [
+      { x:240, y:100, emoji:'🧙', name:'Wizard Merlin', dialog:'Brave adventurer! Collect 5 ✨ Stars to prove your worth. Reach Level 3 to unlock the Beach!', quest:'collect_stars' },
+      { x:500, y:300, emoji:'🐰', name:'Bunny Guide', dialog:'Hello! The Beach is sunny and warm. Collect 3 🐚 Shells there. Good luck!', quest:null },
+    ]
+  },
+  beach: {
+    name: '🏖 Beach', unlockLevel: 3, bg: '#1a3a5c',
+    data: [
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,1],
+      [1,5,5,5,4,5,5,5,5,5,5,5,5,5,4,5,5,5,5,5,5,1],
+      [1,5,5,5,5,5,5,3,3,3,5,5,5,5,5,5,5,5,4,5,5,1],
+      [1,5,5,5,5,5,5,3,5,3,5,5,5,5,5,5,5,5,5,5,5,1],
+      [1,5,5,4,5,5,5,3,5,3,5,5,5,5,5,5,5,5,5,5,4,1],
+      [1,5,5,5,5,5,5,3,3,3,5,5,5,5,5,5,5,5,5,5,5,1],
+      [1,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,1],
+      [1,5,5,5,5,4,5,5,5,5,5,5,5,4,5,5,5,5,5,5,5,1],
+      [1,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,4,5,1],
+      [1,5,5,4,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,1],
+      [1,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,4,5,5,5,1],
+      [1,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    ],
+    itemSpawns: [{x:4,y:2},{x:14,y:4},{x:19,y:8},{x:3,y:10},{x:17,y:11},{x:10,y:6},{x:6,y:8},{x:18,y:3}],
+    npcDefs: [
+      { x:300, y:200, emoji:'🧜', name:'Mermaid Luna', dialog:'Welcome to the Beach! Find 5 🐚 Shells scattered around. Reach Level 5 to enter the Ice Cave!', quest:'collect_shells' },
+      { x:560, y:120, emoji:'🦀', name:'Mr. Crab', dialog:'Pinch pinch! I lost my 🪙 coins. Maybe you found some?', quest:null },
+    ]
+  },
+  cave: {
+    name: '🏔 Ice Cave', unlockLevel: 5, bg: '#0d1f3c',
+    data: [
+      [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
+      [2,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,2],
+      [2,8,8,4,8,8,8,8,8,8,8,8,8,8,8,8,8,4,8,8,8,2],
+      [2,8,8,8,8,8,8,3,3,3,8,8,8,8,8,8,8,8,8,8,8,2],
+      [2,8,2,8,8,8,8,3,8,3,8,1,1,1,8,8,2,8,8,8,8,2],
+      [2,8,8,8,4,8,8,3,8,3,8,1,1,1,8,8,8,8,8,8,4,2],
+      [2,8,8,8,8,8,8,3,3,3,8,1,1,1,8,8,8,8,8,8,8,2],
+      [2,8,8,8,8,8,8,8,8,8,8,8,8,8,8,2,8,8,8,8,8,2],
+      [2,8,2,8,8,8,8,8,8,8,8,8,8,4,8,8,8,8,8,8,8,2],
+      [2,8,8,8,8,4,8,8,8,8,8,8,8,8,8,8,8,8,2,8,8,2],
+      [2,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,2],
+      [2,8,8,4,8,8,8,8,8,2,8,8,8,8,8,8,8,4,8,8,8,2],
+      [2,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,2],
+      [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
+    ],
+    itemSpawns: [{x:5,y:2},{x:16,y:8},{x:10,y:4},{x:19,y:10},{x:3,y:9},{x:13,y:2},{x:7,y:11},{x:20,y:5}],
+    npcDefs: [
+      { x:200, y:150, emoji:'🧊', name:'Ice Golem', dialog:'Brrrr! Collect 5 ❄️ Ice Crystals to earn great power. You are nearly a legend!', quest:'collect_crystals' },
+      { x:580, y:320, emoji:'🦉', name:'Wise Owl', dialog:'Hoot! Only the bravest reach this cave. The dungeon awaits Level 8 heroes!', quest:null },
+    ]
+  },
+  dungeon: {
+    name: '🏯 Dungeon', unlockLevel: 8, bg: '#0a0a0a',
+    data: [
+      [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
+      [2,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,2],
+      [2,8,2,2,8,8,8,8,8,8,2,2,8,8,8,8,8,4,8,8,8,2],
+      [2,8,8,8,8,8,3,3,3,8,8,8,8,8,8,8,8,8,8,8,8,2],
+      [2,8,8,8,8,8,3,8,3,8,8,8,8,8,8,8,2,2,8,8,8,2],
+      [2,8,4,8,8,8,3,8,3,8,8,1,1,8,8,8,8,8,8,8,4,2],
+      [2,8,8,8,8,8,3,3,3,8,8,1,1,8,8,8,8,8,8,8,8,2],
+      [2,8,8,8,8,8,8,8,8,8,8,8,8,8,8,2,2,8,8,8,8,2],
+      [2,8,2,2,8,8,8,8,8,8,8,8,8,4,8,8,8,8,8,8,8,2],
+      [2,8,8,8,8,4,8,8,8,8,8,8,8,8,8,8,8,8,2,2,8,2],
+      [2,8,8,8,8,8,8,8,8,8,2,2,8,8,8,8,8,8,8,8,8,2],
+      [2,8,8,4,8,8,8,8,8,8,8,8,8,8,8,8,8,4,8,8,8,2],
+      [2,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,2],
+      [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
+    ],
+    itemSpawns: [{x:5,y:3},{x:17,y:8},{x:10,y:5},{x:19,y:11},{x:3,y:9},{x:13,y:2},{x:7,y:10},{x:20,y:4}],
+    npcDefs: [
+      { x:350, y:200, emoji:'👑', name:'Dark King', dialog:'You made it! Collect 5 💎 Gems to complete your legend. You are a true hero!', quest:'collect_gems' },
+    ]
+  }
+};
+
+// QUESTS
+const QUESTS = {
+  collect_stars:    { label:'Collect ✨ Stars',    target:5, itemEmoji:'✨', reward:50 },
+  collect_shells:   { label:'Collect 🐚 Shells',   target:5, itemEmoji:'🐚', reward:80 },
+  collect_crystals: { label:'Collect ❄️ Crystals', target:5, itemEmoji:'❄️', reward:120 },
+  collect_gems:     { label:'Collect 💎 Gems',     target:5, itemEmoji:'💎', reward:200 },
+};
+
+// Map items per map
+const MAP_ITEMS = {
+  forest: '✨', beach: '🐚', cave: '❄️', dungeon: '💎'
+};
+
+// ══════════════════════════════
+// STATE
+// ══════════════════════════════
+let db, myId, roomId, myPlayer;
+let players = {}, keys = {}, mobileKeys = {};
+let lastTime = 0;
+let chatBubbles = {};
+let currentMap = 'forest';
+let spawnedItems = {}; // {id: {x,y,emoji,mapId}}
+let collectedItems = {}; // itemId -> true (synced via firebase)
+let myStats = { coins: 0, level: 1, xp: 0, questProgress: {}, questDone: {} };
+let activeQuest = 'collect_stars';
+let nearNpc = null;
+let modalOpen = false;
+
+// ══════════════════════════════
+// AVATAR PICKER
+// ══════════════════════════════
+let selAvatar = AVATARS[0], selColor = COLORS[0];
+const ag = document.getElementById('avatarGrid');
+AVATARS.forEach(av => {
+  const el = document.createElement('div'); el.className='av-option'+(av===selAvatar?' selected':'');
+  el.textContent=av;
+  el.onclick=()=>{ selAvatar=av; document.querySelectorAll('.av-option').forEach(e=>e.classList.remove('selected')); el.classList.add('selected'); };
+  ag.appendChild(el);
+});
+const cr = document.getElementById('colorRow');
+COLORS.forEach(c => {
+  const dot = document.createElement('div'); dot.className='color-dot'+(c===selColor?' selected':'');
+  dot.style.background=c;
+  dot.onclick=()=>{ selColor=c; document.querySelectorAll('.color-dot').forEach(e=>e.classList.remove('selected')); dot.classList.add('selected'); };
+  cr.appendChild(dot);
+});
+
+// ══════════════════════════════
+// SPAWN ITEMS
+// ══════════════════════════════
+function spawnItemsForMap(mapId) {
+  const map = MAPS[mapId];
+  const emoji = MAP_ITEMS[mapId];
+  map.itemSpawns.forEach((sp, i) => {
+    const id = `${mapId}_item_${i}`;
+    if (!spawnedItems[id]) {
+      spawnedItems[id] = { x: sp.x*TILE + TILE/2, y: sp.y*TILE + TILE/2, emoji, mapId, id };
+    }
+  });
+}
+
+// ══════════════════════════════
+// JOIN
+// ══════════════════════════════
+window.joinGame = function() {
+  const name = document.getElementById('nameInput').value.trim();
+  const room = document.getElementById('roomInput').value.trim().toLowerCase().replace(/\s+/g,'');
+  if (!name) { document.getElementById('joinError').textContent = 'Enter your name'; return; }
+  if (!room)  { document.getElementById('joinError').textContent = 'Enter room code'; return; }
+  document.getElementById('joinError').textContent = 'Connecting...';
+  try {
+    const app = initializeApp(FIREBASE_CONFIG);
+    db = getDatabase(app);
+    roomId = room;
+    myId = 'p_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+    myPlayer = { id:myId, name, avatar:selAvatar, color:selColor, x:200, y:200, dir:'down', moving:false, mapId:'forest' };
+
+    // spawn items for all maps
+    Object.keys(MAPS).forEach(spawnItemsForMap);
+
+    initWorld();
+  } catch(e) {
+    document.getElementById('joinError').textContent = 'Error: '+e.message;
+  }
+};
+
+function initWorld() {
+  document.getElementById('joinScreen').classList.remove('active');
+  document.getElementById('gameScreen').classList.add('active');
+
+  const pRef = ref(db, `rooms/${roomId}/players/${myId}`);
+  set(pRef, myPlayer);
+  onDisconnect(pRef).remove();
+
+  onValue(ref(db, `rooms/${roomId}/players`), snap => {
+    players = snap.val() || {};
+    document.getElementById('onlineCount').textContent = `● ${Object.keys(players).length} online`;
+  });
+
+  // sync collected items
+  onValue(ref(db, `rooms/${roomId}/collectedItems`), snap => {
+    collectedItems = snap.val() || {};
+  });
+
+  // chat
+  const chatRef = query(ref(db, `rooms/${roomId}/chat`), limitToLast(5));
+  onValue(chatRef, snap => {
+    const msgs = snap.val() ? Object.values(snap.val()) : [];
+    msgs.forEach(msg => {
+      if (msg.playerId && msg.text) chatBubbles[msg.playerId] = { text:msg.text, time:Date.now() };
+    });
+  });
+
+  // mini-game sync
+  onValue(ref(db, `rooms/${roomId}/minigame`), snap => {
+    const mg = snap.val();
+    if (mg && document.getElementById('mgModal').classList.contains('hidden')===false) {
+      renderTTTBoard(mg);
+    }
+  });
+
+  updateQuestUI();
+  requestAnimationFrame(gameLoop);
+}
+
+// ══════════════════════════════
+// QUEST UI
+// ══════════════════════════════
+function updateQuestUI() {
+  const q = QUESTS[activeQuest];
+  if (!q) return;
+  const prog = myStats.questProgress[activeQuest] || 0;
+  const done = myStats.questDone[activeQuest];
+  const el = document.getElementById('questText');
+  const pe = document.getElementById('questProg');
+  if (done) {
+    el.textContent = `✅ ${q.label} — Complete!`;
+    el.className = 'quest-item done';
+    pe.textContent = '';
+  } else {
+    el.textContent = `${q.label}`;
+    el.className = 'quest-item';
+    pe.textContent = `${prog} / ${q.target}  ·  Reward: 🪙${q.reward} XP`;
+  }
+}
+
+function updateHUD() {
+  document.getElementById('hudCoins').textContent = `🪙 ${myStats.coins}`;
+  document.getElementById('hudLevel').textContent = `⭐ Lv.${myStats.level}`;
+  document.getElementById('hudMap').textContent = MAPS[currentMap].name;
+}
+
+// ══════════════════════════════
+// MAP SELECT
+// ══════════════════════════════
+window.openMapSelect = function() {
+  modalOpen = true;
+  const grid = document.getElementById('mapGrid');
+  grid.innerHTML = '';
+  Object.entries(MAPS).forEach(([id, m]) => {
+    const locked = myStats.level < m.unlockLevel;
+    const isCurrent = id === currentMap;
+    const div = document.createElement('div');
+    div.className = 'map-card' + (locked?' locked':'') + (isCurrent?' current':'');
+    div.innerHTML = `<div class="map-icon">${m.name.split(' ')[0]}</div><div class="map-name">${m.name.split(' ').slice(1).join(' ')}</div><div class="map-req">${locked?`🔒 Lv.${m.unlockLevel} required`:'✅ Available'}</div>`;
+    if (!locked) div.onclick = () => { changeMap(id); closeMapSelect(); };
+    grid.appendChild(div);
+  });
+  document.getElementById('mapModal').classList.remove('hidden');
+};
+window.closeMapSelect = function() { modalOpen=false; document.getElementById('mapModal').classList.add('hidden'); };
+
+function changeMap(mapId) {
+  currentMap = mapId;
+  myPlayer.mapId = mapId;
+  myPlayer.x = 100 + Math.random()*200;
+  myPlayer.y = 100 + Math.random()*150;
+  if (db) set(ref(db, `rooms/${roomId}/players/${myId}`), {...myPlayer});
+  updateHUD();
+}
+
+// ══════════════════════════════
+// NPC INTERACTION
+// ══════════════════════════════
+function checkNpcProximity() {
+  const mapDef = MAPS[currentMap];
+  if (!mapDef.npcDefs) return;
+  nearNpc = null;
+  mapDef.npcDefs.forEach(npc => {
+    const dx = myPlayer.x - npc.x, dy = myPlayer.y - npc.y;
+    if (Math.sqrt(dx*dx+dy*dy) < 40) nearNpc = npc;
+  });
+}
+
+function openNpcDialog(npc) {
+  modalOpen = true;
+  document.getElementById('npcName').textContent = `${npc.emoji} ${npc.name}`;
+  document.getElementById('npcText').textContent = npc.dialog;
+  const btns = document.getElementById('npcBtns');
+  btns.innerHTML = '';
+  if (npc.quest && !myStats.questDone[npc.quest]) {
+    const q = QUESTS[npc.quest];
+    const ab = document.createElement('button');
+    ab.className = 'btn btn-green'; ab.style.fontSize='11px'; ab.style.padding='9px';
+    ab.textContent = `Accept: ${q.label}`;
+    ab.onclick = () => { activeQuest = npc.quest; updateQuestUI(); closeNpc(); };
+    btns.appendChild(ab);
+  }
+  const cb = document.createElement('button');
+  cb.className = 'btn btn-red'; cb.style.fontSize='11px'; cb.style.padding='9px';
+  cb.textContent = 'Goodbye'; cb.onclick = closeNpc;
+  btns.appendChild(cb);
+  document.getElementById('npcModal').classList.remove('hidden');
+}
+function closeNpc() { modalOpen=false; document.getElementById('npcModal').classList.add('hidden'); }
+
+// ══════════════════════════════
+// ITEM COLLECTION
+// ══════════════════════════════
+function checkItemPickup() {
+  Object.values(spawnedItems).forEach(item => {
+    if (item.mapId !== currentMap) return;
+    if (collectedItems[item.id]) return;
+    const dx = myPlayer.x - item.x, dy = myPlayer.y - item.y;
+    if (Math.sqrt(dx*dx+dy*dy) < 22) {
+      collectItem(item);
+    }
+  });
+}
+
+function collectItem(item) {
+  // mark collected in firebase
+  set(ref(db, `rooms/${roomId}/collectedItems/${item.id}`), true);
+
+  myStats.coins += 10;
+  myStats.xp += 15;
+  checkLevelUp();
+
+  // quest progress
+  const q = QUESTS[activeQuest];
+  if (q && item.emoji === q.itemEmoji && !myStats.questDone[activeQuest]) {
+    myStats.questProgress[activeQuest] = (myStats.questProgress[activeQuest]||0)+1;
+    if (myStats.questProgress[activeQuest] >= q.target) {
+      myStats.questDone[activeQuest] = true;
+      myStats.coins += q.reward;
+      myStats.xp += q.reward;
+      checkLevelUp();
+      showPopup(`🎉 Quest Complete! +🪙${q.reward}`);
+    } else {
+      showPopup(`${item.emoji} +10 coins (${myStats.questProgress[activeQuest]}/${q.target})`);
+    }
+  } else {
+    showPopup(`${item.emoji} +10 coins`);
+  }
+  updateQuestUI();
+  updateHUD();
+}
+
+function checkLevelUp() {
+  const xpNeeded = myStats.level * 100;
+  if (myStats.xp >= xpNeeded) {
+    myStats.level++;
+    myStats.xp -= xpNeeded;
+    showPopup(`⭐ Level Up! Now Lv.${myStats.level}`);
+    updateHUD();
+  }
+}
+
+let popupTimer = null;
+function showPopup(msg) {
+  const el = document.getElementById('itemPopup');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  if (popupTimer) clearTimeout(popupTimer);
+  popupTimer = setTimeout(() => el.classList.add('hidden'), 2000);
+}
+
+// ══════════════════════════════
+// MINI GAMES
+// ══════════════════════════════
+window.openMiniGame = function() { modalOpen=true; document.getElementById('mgModal').classList.remove('hidden'); document.getElementById('mgContent').innerHTML=''; };
+window.closeMiniGame = function() { modalOpen=false; document.getElementById('mgModal').classList.add('hidden'); };
+
+// TIC TAC TOE
+window.startTTT = function() {
+  set(ref(db, `rooms/${roomId}/minigame`), { type:'ttt', board:Array(9).fill(''), turn:'X', result:'' });
+};
+function renderTTTBoard(mg) {
+  if (mg.type !== 'ttt') return;
+  const el = document.getElementById('mgContent');
+  const isX = Object.keys(players).indexOf(myId) % 2 === 0;
+  const myMark = isX ? 'X' : 'O';
+  el.innerHTML = `<div style="font-size:11px;color:var(--muted);margin-bottom:8px;letter-spacing:1px;">You are: <span style="color:${myMark==='X'?'var(--accent)':'var(--blue)'}">${myMark}</span> · Turn: <span style="color:var(--yellow)">${mg.turn}</span></div>`;
+  const grid = document.createElement('div'); grid.id='mgBoard';
+  mg.board.forEach((cell,i) => {
+    const div = document.createElement('div'); div.className='mg-cell'+(cell?' '+cell.toLowerCase():'');
+    div.textContent = cell==='X'?'✕':cell==='O'?'○':'';
+    if (!cell && !mg.result && mg.turn===myMark) {
+      div.onclick = () => {
+        const nb = [...mg.board]; nb[i]=myMark;
+        const res = checkTTT(nb);
+        set(ref(db,`rooms/${roomId}/minigame`), {...mg, board:nb, turn:mg.turn==='X'?'O':'X', result:res});
+        if (res) { myStats.coins+=20; updateHUD(); showPopup('🎮 +20 coins!'); }
+      };
+    }
+    grid.appendChild(div);
+  });
+  el.appendChild(grid);
+  if (mg.result) {
+    const r = document.createElement('div'); r.className='mg-result';
+    r.textContent = mg.result==='draw'?'🤝 Draw!':`🏆 ${mg.result} Wins!`;
+    el.appendChild(r);
+    const rb = document.createElement('button'); rb.className='btn btn-green'; rb.style.cssText='font-size:10px;padding:7px;margin-top:8px;';
+    rb.textContent='Play Again'; rb.onclick=window.startTTT;
+    el.appendChild(rb);
+  }
+}
+function checkTTT(b) {
+  const lines=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  for (const [a,c,d] of lines) if (b[a]&&b[a]===b[c]&&b[a]===b[d]) return b[a];
+  if (b.every(c=>c)) return 'draw';
+  return '';
+}
+
+// ROCK PAPER SCISSORS
+window.startRPS = function() {
+  const el = document.getElementById('mgContent');
+  el.innerHTML = `<div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Choose your move!</div>
+  <div style="display:flex;gap:10px;justify-content:center;">
+    <button onclick="playRPS('rock')" style="font-size:1.8rem;background:var(--bg);border:2px solid #3a3a5a;border-radius:10px;padding:12px 16px;cursor:pointer;">🪨</button>
+    <button onclick="playRPS('paper')" style="font-size:1.8rem;background:var(--bg);border:2px solid #3a3a5a;border-radius:10px;padding:12px 16px;cursor:pointer;">📄</button>
+    <button onclick="playRPS('scissors')" style="font-size:1.8rem;background:var(--bg);border:2px solid #3a3a5a;border-radius:10px;padding:12px 16px;cursor:pointer;">✂️</button>
+  </div>
+  <div id="rpsResult" style="margin-top:12px;font-size:12px;color:var(--yellow);text-align:center;min-height:20px;letter-spacing:1px;"></div>`;
+};
+window.playRPS = function(choice) {
+  const choices = ['rock','paper','scissors'];
+  const emojis = {rock:'🪨',paper:'📄',scissors:'✂️'};
+  const ai = choices[Math.floor(Math.random()*3)];
+  const wins = {rock:'scissors',paper:'rock',scissors:'paper'};
+  let result='';
+  if (choice===ai) result='🤝 Draw!';
+  else if (wins[choice]===ai) { result='🏆 You Win! +20 coins'; myStats.coins+=20; updateHUD(); }
+  else result='💀 You Lose!';
+  document.getElementById('rpsResult').textContent=`You: ${emojis[choice]} vs AI: ${emojis[ai]} — ${result}`;
+};
+
+// ══════════════════════════════
+// CHAT
+// ══════════════════════════════
+window.sendChat = function() {
+  const inp = document.getElementById('chatInput');
+  const text = inp.value.trim();
+  if (!text||!db) return;
+  push(ref(db,`rooms/${roomId}/chat`), { playerId:myId, name:myPlayer.name, text, ts:Date.now() });
+  inp.value='';
+};
+document.getElementById('chatInput')?.addEventListener('keydown', e=>{ if(e.key==='Enter') window.sendChat(); });
+
+// ══════════════════════════════
+// LEAVE
+// ══════════════════════════════
+window.leaveGame = function() { if(db&&myId&&roomId) remove(ref(db,`rooms/${roomId}/players/${myId}`)); location.reload(); };
+
+// ══════════════════════════════
+// INPUT
+// ══════════════════════════════
+document.addEventListener('keydown', e=>{ keys[e.key]=true; if(e.key==='e'||e.key==='E') { if(nearNpc) openNpcDialog(nearNpc); } });
+document.addEventListener('keyup',   e=>{ keys[e.key]=false; });
+window.sm = dir => mobileKeys[dir]=true;
+window.em = dir => mobileKeys[dir]=false;
+
+function isSolid(x,y,mapId) {
+  const map = MAPS[mapId||currentMap];
+  const tx=Math.floor(x/TILE), ty=Math.floor(y/TILE);
+  if(tx<0||ty<0||tx>=map.data[0].length||ty>=map.data.length) return true;
+  const t=map.data[ty]?.[tx];
+  return t===1||t===2;
+}
+
+function updatePlayer() {
+  if(modalOpen) return;
+  let dx=0,dy=0;
+  if(keys['ArrowUp']   ||keys['w']||keys['W']||mobileKeys['up'])    dy=-SPEED;
+  if(keys['ArrowDown'] ||keys['s']||keys['S']||mobileKeys['down'])   dy= SPEED;
+  if(keys['ArrowLeft'] ||keys['a']||keys['A']||mobileKeys['left'])   dx=-SPEED;
+  if(keys['ArrowRight']||keys['d']||keys['D']||mobileKeys['right'])  dx= SPEED;
+
+  if(dx||dy) {
+    const nx=Math.max(16,Math.min(W-16,myPlayer.x+dx));
+    const ny=Math.max(16,Math.min(H-16,myPlayer.y+dy));
+    if(!isSolid(nx,myPlayer.y)) myPlayer.x=nx;
+    if(!isSolid(myPlayer.x,ny)) myPlayer.y=ny;
+    if(dy<0) myPlayer.dir='up'; else if(dy>0) myPlayer.dir='down';
+    else if(dx<0) myPlayer.dir='left'; else myPlayer.dir='right';
+    myPlayer.moving=true;
+    if(db) set(ref(db,`rooms/${roomId}/players/${myId}`),{...myPlayer});
+    checkItemPickup();
+    checkNpcProximity();
+  } else {
+    if(myPlayer.moving) { myPlayer.moving=false; if(db) set(ref(db,`rooms/${roomId}/players/${myId}`),{...myPlayer}); }
+  }
+}
+
+// ══════════════════════════════
+// RENDER
+// ══════════════════════════════
+const canvas = document.getElementById('worldCanvas');
+const ctx = canvas.getContext('2d');
+
+const TILE_COLORS = { 0:'#2d5a27',1:'#1e4a8c',2:'#1a3d15',3:'#8a7560',4:'#2d5a27',5:'#c8a96a',6:'#a8d4f0',7:'#8b0000',8:'#2a2a3a' };
+
+function drawTile(t,x,y) {
+  ctx.fillStyle=TILE_COLORS[t]||'#2d5a27';
+  ctx.fillRect(x,y,TILE,TILE);
+  if(t===0){
+    ctx.fillStyle='#3a6e33';
+    ctx.fillRect(x+4,y+8,3,2); ctx.fillRect(x+14,y+18,3,2); ctx.fillRect(x+22,y+6,3,2);
+  } else if(t===2){
+    ctx.fillStyle='#4a2800'; ctx.fillRect(x+12,y+20,8,12);
+    ctx.fillStyle='#2a7a1a'; ctx.beginPath(); ctx.arc(x+16,y+14,14,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#38a022'; ctx.beginPath(); ctx.arc(x+12,y+10,10,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x+20,y+10,10,0,Math.PI*2); ctx.fill();
+  } else if(t===1){
+    ctx.fillStyle='rgba(100,160,255,0.3)';
+    ctx.fillRect(x+2,y+8+Math.sin(Date.now()/600+x)*2,TILE-4,4);
+    ctx.fillRect(x+2,y+20+Math.sin(Date.now()/600+x+1)*2,TILE-4,4);
+  } else if(t===3){
+    ctx.fillStyle='#7a6550'; ctx.fillRect(x+3,y+3,10,8); ctx.fillRect(x+18,y+10,10,8); ctx.fillRect(x+6,y+20,8,8);
+  } else if(t===4){
+    if(currentMap==='forest'||currentMap==='dungeon'){
+      ctx.fillStyle='#ff6b9d'; ctx.beginPath(); ctx.arc(x+10,y+14,4,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#ffcc00'; ctx.beginPath(); ctx.arc(x+10,y+14,2,0,Math.PI*2); ctx.fill();
+    } else if(currentMap==='beach'){
+      ctx.fillStyle='#ff9900'; ctx.beginPath(); ctx.arc(x+16,y+16,6,0,Math.PI*2); ctx.fill();
+    } else {
+      ctx.fillStyle='#aaddff'; ctx.beginPath(); ctx.arc(x+16,y+16,5,0,Math.PI*2); ctx.fill();
+    }
+  } else if(t===5){
+    ctx.fillStyle='rgba(200,150,80,0.3)'; ctx.fillRect(x+2,y+2,12,10); ctx.fillRect(x+18,y+18,10,8);
+  } else if(t===8){
+    ctx.fillStyle='rgba(100,100,150,0.2)'; ctx.fillRect(x,y,TILE,TILE);
+    if(Math.floor(x/TILE+y/TILE)%3===0){ ctx.fillStyle='rgba(80,80,120,0.4)'; ctx.fillRect(x+2,y+2,28,28); }
+  }
+}
+
+function drawMap() {
+  const map = MAPS[currentMap];
+  const rows=map.data, cols=rows[0].length;
+  for(let r=0;r<rows.length;r++) for(let c=0;c<cols;c++) drawTile(rows[r][c],c*TILE,r*TILE);
+}
+
+function drawItems() {
+  Object.values(spawnedItems).forEach(item => {
+    if(item.mapId!==currentMap) return;
+    if(collectedItems[item.id]) return;
+    const pulse = Math.sin(Date.now()/400)*3;
+    ctx.font=(18+pulse)+'px serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(item.emoji, item.x, item.y);
+    ctx.fillStyle='rgba(255,255,255,0.15)';
+    ctx.beginPath(); ctx.arc(item.x,item.y,12+pulse,0,Math.PI*2); ctx.fill();
+  });
+}
+
+function drawNPCs() {
+  const mapDef = MAPS[currentMap];
+  if(!mapDef.npcDefs) return;
+  mapDef.npcDefs.forEach(npc => {
+    const bob = Math.sin(Date.now()/500)*3;
+    ctx.font='22px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(npc.emoji, npc.x, npc.y+bob);
+    // indicator
+    if(nearNpc===npc){
+      ctx.font='bold 10px Courier New'; ctx.textAlign='center'; ctx.textBaseline='bottom';
+      ctx.fillStyle='rgba(255,212,96,0.9)';
+      const tw=ctx.measureText('[E] Talk').width+10;
+      ctx.beginPath(); ctx.roundRect(npc.x-tw/2,npc.y-40+bob,tw,14,4); ctx.fill();
+      ctx.fillStyle='#1a1a2e'; ctx.fillText('[E] Talk',npc.x,npc.y-27+bob);
+    }
+    // name
+    ctx.font='bold 9px Courier New'; ctx.textAlign='center'; ctx.textBaseline='bottom';
+    ctx.fillStyle='rgba(0,0,0,0.5)';
+    const nw=ctx.measureText(npc.name).width+8;
+    ctx.beginPath(); ctx.roundRect(npc.x-nw/2,npc.y-24+bob,nw,13,3); ctx.fill();
+    ctx.fillStyle='#ffd460'; ctx.fillText(npc.name,npc.x,npc.y-12+bob);
+  });
+}
+
+function drawPlayer(p, isMe) {
+  if(p.mapId && p.mapId!==currentMap && !isMe) return;
+  if(isMe && p.mapId!==currentMap) return; // don't draw me on wrong map
+  const x=p.x, y=p.y;
+  const bob=p.moving?Math.sin(Date.now()/120)*2:0;
+  ctx.fillStyle='rgba(0,0,0,0.2)'; ctx.beginPath(); ctx.ellipse(x,y+12,10,5,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle=p.color||'#4ecca3'; ctx.beginPath(); ctx.arc(x,y-4+bob,13,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle=isMe?'#fff':'rgba(255,255,255,0.4)'; ctx.lineWidth=isMe?2.5:1.5; ctx.stroke();
+  ctx.font='16px serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(p.avatar||'🐱',x,y-4+bob);
+  ctx.font='bold 9px Courier New'; ctx.textAlign='center'; ctx.textBaseline='bottom';
+  const nw=ctx.measureText(p.name).width+10;
+  ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.beginPath(); ctx.roundRect(x-nw/2,y-28+bob,nw,13,4); ctx.fill();
+  ctx.fillStyle=isMe?'#4ecca3':'#fff'; ctx.fillText(p.name,x,y-16+bob);
+  const bubble=chatBubbles[p.id];
+  if(bubble&&Date.now()-bubble.time<4000){
+    ctx.font='9px Courier New'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    const bw=Math.min(ctx.measureText(bubble.text).width+14,130);
+    const bx=x-bw/2, by=y-56+bob;
+    ctx.fillStyle='rgba(255,255,255,0.92)'; ctx.beginPath(); ctx.roundRect(bx,by,bw,18,5); ctx.fill();
+    ctx.fillStyle='#1a1a2e';
+    let txt=bubble.text; if(ctx.measureText(txt).width>bw-14) txt=txt.slice(0,16)+'…';
+    ctx.fillText(txt,x,by+9);
+  }
+}
+
+function gameLoop(ts) {
+  if(ts-lastTime>16) {
+    lastTime=ts;
+    ctx.clearRect(0,0,W,H);
+    drawMap();
+    drawItems();
+    drawNPCs();
+    updatePlayer();
+    const all={...players,[myId]:myPlayer};
+    Object.values(all).sort((a,b)=>a.y-b.y).forEach(p=>drawPlayer(p,p.id===myId));
+  }
+  requestAnimationFrame(gameLoop);
+}
+
+window.addEventListener('keydown',e=>{ if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault(); });
+</script>
+</body>
+</html>
