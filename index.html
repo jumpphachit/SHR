@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pixel World 🌍</title>
+<style>
+:root {
+  --bg: #1a1a2e;
+  --surface: #16213e;
+  --card: #0f3460;
+  --accent: #e94560;
+  --green: #4ecca3;
+  --yellow: #ffd460;
+  --text: #eaeaea;
+  --muted: #888;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Courier New', monospace;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ── SCREENS ── */
+.screen { display: none; width: 100%; max-width: 520px; padding: 32px 20px; flex-direction: column; align-items: center; gap: 16px; }
+.screen.active { display: flex; }
+
+h1 { font-size: 2.2rem; letter-spacing: 6px; color: var(--green); text-shadow: 0 0 20px rgba(78,204,163,0.5); }
+.sub { font-size: 11px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase; }
+
+.card {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid #2a2a4a;
+  border-radius: 14px;
+  padding: 24px;
+}
+.card h2 { font-size: 12px; letter-spacing: 3px; color: var(--green); margin-bottom: 16px; text-transform: uppercase; }
+
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.field label { font-size: 10px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; }
+.field input {
+  background: var(--bg);
+  border: 1px solid #2a2a4a;
+  border-radius: 8px;
+  padding: 11px 14px;
+  color: var(--text);
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.field input:focus { border-color: var(--green); }
+
+.btn {
+  width: 100%;
+  padding: 13px;
+  border: none;
+  border-radius: 8px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-green { background: var(--green); color: var(--bg); font-weight: bold; }
+.btn-green:hover { opacity: 0.85; transform: translateY(-1px); }
+.btn-red { background: var(--accent); color: #fff; font-weight: bold; margin-top: 6px; }
+.btn-red:hover { opacity: 0.85; }
+
+/* avatar picker */
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.av-option {
+  width: 100%;
+  aspect-ratio: 1;
+  border: 2px solid #2a2a4a;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  cursor: pointer;
+  background: var(--bg);
+  transition: all 0.15s;
+}
+.av-option:hover { border-color: var(--green); transform: scale(1.08); }
+.av-option.selected { border-color: var(--green); background: rgba(78,204,163,0.15); box-shadow: 0 0 10px rgba(78,204,163,0.3); }
+
+/* color picker */
+.color-grid {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px;
+}
+.color-dot {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.15s;
+}
+.color-dot:hover { transform: scale(1.15); }
+.color-dot.selected { border-color: #fff; transform: scale(1.15); }
+
+/* error */
+.error-msg { font-size: 11px; color: var(--accent); letter-spacing: 1px; min-height: 16px; }
+
+/* ── GAME ── */
+#gameScreen {
+  max-width: 100%;
+  padding: 0;
+  position: relative;
+}
+
+#gameHeader {
+  width: 100%;
+  background: var(--surface);
+  border-bottom: 1px solid #2a2a4a;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+#gameHeader .room-info { font-size: 11px; letter-spacing: 2px; color: var(--muted); }
+#gameHeader .room-info span { color: var(--green); }
+#onlineCount { font-size: 11px; color: var(--green); letter-spacing: 1px; }
+
+#worldCanvas {
+  display: block;
+  width: 100%;
+  max-width: 700px;
+  image-rendering: pixelated;
+  cursor: none;
+  background: #0d1117;
+}
+
+#controls {
+  width: 100%;
+  background: var(--surface);
+  border-top: 1px solid #2a2a4a;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.ctrl-hint { font-size: 10px; letter-spacing: 1px; color: var(--muted); }
+.ctrl-hint kbd {
+  background: var(--bg);
+  border: 1px solid #3a3a5a;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 10px;
+  color: var(--text);
+}
+
+/* mobile d-pad */
+#dpad {
+  display: none;
+  grid-template-columns: repeat(3, 44px);
+  grid-template-rows: repeat(3, 44px);
+  gap: 4px;
+}
+.dpad-btn {
+  background: var(--card);
+  border: 1px solid #2a4a6a;
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.1s;
+}
+.dpad-btn:active { background: var(--green); color: var(--bg); }
+.dpad-center { grid-column: 2; grid-row: 2; }
+
+@media (max-width: 600px) {
+  #dpad { display: grid; }
+  .ctrl-hint { display: none; }
+}
+
+/* chat */
+#chatWrap {
+  width: 100%;
+  max-width: 700px;
+  background: var(--surface);
+  border-top: 1px solid #2a2a4a;
+  padding: 10px 16px;
+  display: flex;
+  gap: 8px;
+}
+#chatInput {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid #2a2a4a;
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: var(--text);
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  outline: none;
+}
+#chatInput:focus { border-color: var(--green); }
+#chatSend {
+  background: var(--green);
+  color: var(--bg);
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  font-weight: bold;
+  cursor: pointer;
+  letter-spacing: 1px;
+}
+
+/* setup firebase screen */
+.code-block {
+  background: var(--bg);
+  border: 1px solid #2a2a4a;
+  border-radius: 8px;
+  padding: 14px;
+  font-size: 11px;
+  line-height: 1.8;
+  color: var(--green);
+  overflow-x: auto;
+  white-space: pre;
+  margin: 8px 0;
+}
+.step { display: flex; gap: 10px; margin-bottom: 12px; align-items: flex-start; }
+.step-num {
+  background: var(--accent);
+  color: #fff;
+  border-radius: 50%;
+  width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: bold; flex-shrink: 0; margin-top: 1px;
+}
+.step-text { font-size: 12px; line-height: 1.6; color: var(--text); }
+.step-text strong { color: var(--yellow); }
+</style>
+</head>
+<body>
+
+<!-- JOIN SCREEN -->
+<div class="screen active" id="joinScreen">
+  <h1>PIXEL WORLD</h1>
+  <p class="sub">realtime multiplayer · powered by firebase</p>
+
+  <div class="card">
+    <h2>Choose Your Character</h2>
+    <div class="avatar-grid" id="avatarGrid"></div>
+    <div class="field">
+      <label>Your Name</label>
+      <input type="text" id="nameInput" placeholder="Enter your name..." maxlength="12">
+    </div>
+    <div class="field">
+      <label>Room Code (share with friends)</label>
+      <input type="text" id="roomInput" placeholder="e.g. myroom123" maxlength="20">
+    </div>
+    <div class="error-msg" id="joinError"></div>
+    <button class="btn btn-green" onclick="joinGame()">Enter World ➜</button>
+  </div>
+
+
+</div>
+
+<!-- GAME SCREEN -->
+<div class="screen" id="gameScreen">
+  <div id="gameHeader">
+    <div class="room-info">Room: <span id="roomLabel">—</span></div>
+    <div id="onlineCount">● 1 online</div>
+    <button class="btn btn-red" style="width:auto;padding:6px 14px;font-size:11px;" onclick="leaveGame()">Leave</button>
+  </div>
+  <canvas id="worldCanvas" width="700" height="450"></canvas>
+  <div id="controls">
+    <div class="ctrl-hint"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or Arrow keys to move</div>
+    <div id="dpad">
+      <div></div>
+      <button class="dpad-btn" ontouchstart="startMove('up')" ontouchend="stopMove('up')">▲</button>
+      <div></div>
+      <button class="dpad-btn" ontouchstart="startMove('left')" ontouchend="stopMove('left')">◀</button>
+      <div class="dpad-btn dpad-center"></div>
+      <button class="dpad-btn" ontouchstart="startMove('right')" ontouchend="stopMove('right')">▶</button>
+      <div></div>
+      <button class="dpad-btn" ontouchstart="startMove('down')" ontouchend="stopMove('down')">▼</button>
+      <div></div>
+    </div>
+  </div>
+  <div id="chatWrap">
+    <input type="text" id="chatInput" placeholder="Say something..." maxlength="40">
+    <button id="chatSend" onclick="sendChat()">Send</button>
+  </div>
+</div>
+
+<script type="module">
+// ══════════════════════════════════════════════════
+// ✅ FIREBASE CONFIG — READY TO USE
+// ══════════════════════════════════════════════════
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCdoXJs7v8ZVCvgbKdMjGrmAd12OZgyUF4",
+  authDomain: "jumpphachit-b6007.firebaseapp.com",
+  databaseURL: "https://jumpphachit-b6007-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "jumpphachit-b6007",
+  storageBucket: "jumpphachit-b6007.firebasestorage.app",
+  messagingSenderId: "1058953055583",
+  appId: "1:1058953055583:web:8ed4bcbd41b4d59fcf7aea"
+};
+// ══════════════════════════════════════════════════
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, set, onValue, onDisconnect, remove, push, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+// ── CONSTANTS ──
+const AVATARS = ['🐱','🐶','🐸','🐼','🦊','🐯','🐧','🐻','🦁','🐨'];
+const COLORS  = ['#4ecca3','#e94560','#ffd460','#a78bfa','#f97316','#38bdf8','#fb7185','#86efac'];
+const WORLD_W = 700, WORLD_H = 450;
+const SPEED   = 2.5;
+const TILE    = 32;
+
+// Map tiles (0=grass, 1=water, 2=tree, 3=path, 4=flower)
+const MAP = [
+  [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
+  [2,0,0,0,0,0,0,3,3,3,0,0,0,0,4,0,0,0,0,0,0,2],
+  [2,0,0,4,0,0,0,3,0,3,0,0,0,0,0,0,0,0,4,0,0,2],
+  [2,0,0,0,0,0,0,3,0,3,0,1,1,1,0,0,0,0,0,0,0,2],
+  [2,0,2,0,0,0,0,3,0,3,0,1,1,1,0,0,2,0,0,0,0,2],
+  [2,0,0,0,0,0,0,3,0,3,0,1,1,1,0,0,0,0,0,0,4,2],
+  [2,0,0,0,4,0,0,3,3,3,0,0,0,0,0,0,0,0,0,0,0,2],
+  [2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,2],
+  [2,0,2,0,0,0,0,0,0,0,0,0,0,4,0,0,0,0,0,0,0,2],
+  [2,0,0,0,0,4,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,2],
+  [2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2],
+  [2,0,0,4,0,0,0,0,0,2,0,0,0,0,0,0,0,4,0,0,0,2],
+  [2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2],
+  [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
+];
+const COLS=MAP[0].length, ROWS=MAP.length;
+
+// ── STATE ──
+let db, myId, roomId, myPlayer;
+let players = {};
+let chatMessages = [];
+let keys = {};
+let animFrame = 0, lastTime = 0;
+let chatBubbles = {};
+
+// ── AVATAR PICKER ──
+const AVATARS_EL = document.getElementById('avatarGrid');
+let selectedAvatar = AVATARS[0];
+let selectedColor  = COLORS[0];
+
+AVATARS.forEach(av => {
+  const el = document.createElement('div');
+  el.className = 'av-option' + (av === selectedAvatar ? ' selected' : '');
+  el.textContent = av;
+  el.onclick = () => {
+    selectedAvatar = av;
+    document.querySelectorAll('.av-option').forEach(e => e.classList.remove('selected'));
+    el.classList.add('selected');
+  };
+  AVATARS_EL.appendChild(el);
+});
+
+// color dots
+const colorGrid = document.createElement('div');
+colorGrid.className = 'color-grid';
+COLORS.forEach(c => {
+  const dot = document.createElement('div');
+  dot.className = 'color-dot' + (c === selectedColor ? ' selected' : '');
+  dot.style.background = c;
+  dot.onclick = () => {
+    selectedColor = c;
+    document.querySelectorAll('.color-dot').forEach(e => e.classList.remove('selected'));
+    dot.classList.add('selected');
+  };
+  colorGrid.appendChild(dot);
+});
+document.querySelector('.avatar-grid').after(colorGrid);
+
+// ── JOIN ──
+window.joinGame = function() {
+  const name = document.getElementById('nameInput').value.trim();
+  const room = document.getElementById('roomInput').value.trim().toLowerCase().replace(/\s+/g,'');
+  if (!name) { document.getElementById('joinError').textContent = 'Please enter your name'; return; }
+  if (!room)  { document.getElementById('joinError').textContent = 'Please enter a room code'; return; }
+  if (FIREBASE_CONFIG.apiKey === 'YOUR_API_KEY') {
+    document.getElementById('joinError').textContent = '⚠️ Please set up Firebase config first (see below)';
+    return;
+  }
+  document.getElementById('joinError').textContent = 'Connecting...';
+  try {
+    const app = initializeApp(FIREBASE_CONFIG);
+    db = getDatabase(app);
+    roomId = room;
+    myId = 'player_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+    myPlayer = {
+      id: myId, name, avatar: selectedAvatar, color: selectedColor,
+      x: 100 + Math.random()*200, y: 100 + Math.random()*150,
+      dir: 'down', moving: false
+    };
+    initWorld();
+  } catch(e) {
+    document.getElementById('joinError').textContent = 'Firebase error: ' + e.message;
+  }
+};
+
+function initWorld() {
+  document.getElementById('joinScreen').classList.remove('active');
+  document.getElementById('gameScreen').classList.add('active');
+  document.getElementById('roomLabel').textContent = roomId;
+
+  // write my player
+  const pRef = ref(db, `rooms/${roomId}/players/${myId}`);
+  set(pRef, myPlayer);
+  onDisconnect(pRef).remove();
+
+  // listen to all players
+  onValue(ref(db, `rooms/${roomId}/players`), snap => {
+    players = snap.val() || {};
+    const count = Object.keys(players).length;
+    document.getElementById('onlineCount').textContent = `● ${count} online`;
+  });
+
+  // listen to chat
+  const chatRef = query(ref(db, `rooms/${roomId}/chat`), limitToLast(5));
+  onValue(chatRef, snap => {
+    chatMessages = snap.val() ? Object.values(snap.val()) : [];
+    // show bubble for new messages
+    chatMessages.forEach(msg => {
+      if (msg.playerId && msg.text) {
+        chatBubbles[msg.playerId] = { text: msg.text, time: Date.now() };
+      }
+    });
+  });
+
+  requestAnimationFrame(gameLoop);
+}
+
+// ── CHAT ──
+window.sendChat = function() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text || !db) return;
+  push(ref(db, `rooms/${roomId}/chat`), {
+    playerId: myId, name: myPlayer.name, text, ts: Date.now()
+  });
+  input.value = '';
+};
+document.getElementById('chatInput')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') window.sendChat();
+});
+
+// ── LEAVE ──
+window.leaveGame = function() {
+  if (db && myId && roomId) remove(ref(db, `rooms/${roomId}/players/${myId}`));
+  location.reload();
+};
+
+// ── INPUT ──
+document.addEventListener('keydown', e => { keys[e.key] = true; });
+document.addEventListener('keyup',   e => { keys[e.key] = false; });
+
+const mobileKeys = {};
+window.startMove = dir => { mobileKeys[dir] = true; };
+window.stopMove  = dir => { mobileKeys[dir] = false; };
+
+function isSolid(x, y) {
+  const tx = Math.floor(x / TILE), ty = Math.floor(y / TILE);
+  if (tx < 0 || ty < 0 || tx >= COLS || ty >= ROWS) return true;
+  const t = MAP[ty]?.[tx];
+  return t === 1 || t === 2;
+}
+
+function updateMyPlayer() {
+  let dx = 0, dy = 0;
+  if (keys['ArrowUp']    || keys['w'] || keys['W'] || mobileKeys['up'])    dy = -SPEED;
+  if (keys['ArrowDown']  || keys['s'] || keys['S'] || mobileKeys['down'])  dy =  SPEED;
+  if (keys['ArrowLeft']  || keys['a'] || keys['A'] || mobileKeys['left'])  dx = -SPEED;
+  if (keys['ArrowRight'] || keys['d'] || keys['D'] || mobileKeys['right']) dx =  SPEED;
+
+  if (dx !== 0 || dy !== 0) {
+    const nx = Math.max(16, Math.min(WORLD_W - 16, myPlayer.x + dx));
+    const ny = Math.max(16, Math.min(WORLD_H - 16, myPlayer.y + dy));
+    if (!isSolid(nx, myPlayer.y)) myPlayer.x = nx;
+    if (!isSolid(myPlayer.x, ny)) myPlayer.y = ny;
+    if (dy < 0) myPlayer.dir = 'up';
+    else if (dy > 0) myPlayer.dir = 'down';
+    else if (dx < 0) myPlayer.dir = 'left';
+    else myPlayer.dir = 'right';
+    myPlayer.moving = true;
+
+    if (db) set(ref(db, `rooms/${roomId}/players/${myId}`), { ...myPlayer });
+  } else {
+    if (myPlayer.moving) {
+      myPlayer.moving = false;
+      if (db) set(ref(db, `rooms/${roomId}/players/${myId}`), { ...myPlayer });
+    }
+  }
+}
+
+// ── RENDER ──
+const canvas = document.getElementById('worldCanvas');
+const ctx    = canvas.getContext('2d');
+
+const TILE_COLORS = {
+  0: '#2d5a27', // grass
+  1: '#1e4a8c', // water
+  2: '#1a3d15', // tree base
+  3: '#8a7560', // path
+  4: '#2d5a27', // flower base
+};
+
+function drawMap() {
+  for (let row = 0; row < ROWS; row++) {
+    for (let col = 0; col < COLS; col++) {
+      const t = MAP[row][col];
+      const x = col * TILE, y = row * TILE;
+      ctx.fillStyle = TILE_COLORS[t] || '#2d5a27';
+      ctx.fillRect(x, y, TILE, TILE);
+
+      // details
+      if (t === 0) {
+        // grass texture
+        ctx.fillStyle = '#3a6e33';
+        ctx.fillRect(x+4, y+8, 3, 2);
+        ctx.fillRect(x+14, y+18, 3, 2);
+        ctx.fillRect(x+22, y+6, 3, 2);
+      } else if (t === 2) {
+        // tree
+        ctx.fillStyle = '#4a2800';
+        ctx.fillRect(x+12, y+20, 8, 12);
+        ctx.fillStyle = '#2a7a1a';
+        ctx.beginPath();
+        ctx.arc(x+16, y+14, 14, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#38a022';
+        ctx.beginPath();
+        ctx.arc(x+12, y+10, 10, 0, Math.PI*2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x+20, y+10, 10, 0, Math.PI*2);
+        ctx.fill();
+      } else if (t === 1) {
+        // water shimmer
+        ctx.fillStyle = 'rgba(100,160,255,0.3)';
+        ctx.fillRect(x+2, y+8+Math.sin(Date.now()/600+col)*2, TILE-4, 4);
+        ctx.fillRect(x+2, y+20+Math.sin(Date.now()/600+col+1)*2, TILE-4, 4);
+      } else if (t === 3) {
+        // path stones
+        ctx.fillStyle = '#7a6550';
+        ctx.fillRect(x+3,  y+3,  10, 8);
+        ctx.fillRect(x+18, y+10, 10, 8);
+        ctx.fillRect(x+6,  y+20, 8,  8);
+      } else if (t === 4) {
+        // flower
+        ctx.fillStyle = '#ff6b9d';
+        ctx.beginPath(); ctx.arc(x+10, y+14, 4, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#ffcc00';
+        ctx.beginPath(); ctx.arc(x+10, y+14, 2, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#ff9ef5';
+        ctx.beginPath(); ctx.arc(x+22, y+20, 3, 0, Math.PI*2); ctx.fill();
+      }
+    }
+  }
+}
+
+function drawPlayer(p, isMe) {
+  const x = p.x, y = p.y;
+  const bob = p.moving ? Math.sin(Date.now() / 120) * 2 : 0;
+
+  // shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.beginPath();
+  ctx.ellipse(x, y+12, 10, 5, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // body circle with player color
+  ctx.fillStyle = p.color || '#4ecca3';
+  ctx.beginPath();
+  ctx.arc(x, y - 4 + bob, 13, 0, Math.PI*2);
+  ctx.fill();
+
+  // border (white for me, muted for others)
+  ctx.strokeStyle = isMe ? '#ffffff' : 'rgba(255,255,255,0.4)';
+  ctx.lineWidth = isMe ? 2.5 : 1.5;
+  ctx.stroke();
+
+  // avatar emoji
+  ctx.font = '16px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(p.avatar || '🐱', x, y - 4 + bob);
+
+  // name tag
+  ctx.font = 'bold 10px Courier New';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  const nameW = ctx.measureText(p.name).width + 10;
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.beginPath();
+  ctx.roundRect(x - nameW/2, y - 28 + bob, nameW, 14, 4);
+  ctx.fill();
+  ctx.fillStyle = isMe ? '#4ecca3' : '#ffffff';
+  ctx.fillText(p.name, x, y - 15 + bob);
+
+  // chat bubble
+  const bubble = chatBubbles[p.id];
+  if (bubble && Date.now() - bubble.time < 4000) {
+    const bw = Math.min(ctx.measureText(bubble.text).width + 16, 140);
+    const bx = x - bw/2, by = y - 58 + bob;
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    ctx.beginPath(); ctx.roundRect(bx, by, bw, 20, 6); ctx.fill();
+    ctx.fillStyle = '#1a1a2e';
+    ctx.font = '10px Courier New';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    // truncate
+    let txt = bubble.text;
+    if (ctx.measureText(txt).width > bw - 16) txt = txt.slice(0,18)+'…';
+    ctx.fillText(txt, x, by + 10);
+  } else if (bubble && Date.now() - bubble.time >= 4000) {
+    delete chatBubbles[p.id];
+  }
+}
+
+function gameLoop(ts) {
+  if (ts - lastTime > 16) {
+    lastTime = ts;
+    animFrame++;
+    ctx.clearRect(0, 0, WORLD_W, WORLD_H);
+    drawMap();
+
+    updateMyPlayer();
+
+    // draw other players first, then me on top
+    const allPlayers = { ...players, [myId]: myPlayer };
+    Object.values(allPlayers).sort((a,b) => a.y - b.y).forEach(p => {
+      drawPlayer(p, p.id === myId);
+    });
+  }
+  requestAnimationFrame(gameLoop);
+}
+
+// prevent arrow key scroll
+window.addEventListener('keydown', e => {
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+});
+</script>
+</body>
+</html>
